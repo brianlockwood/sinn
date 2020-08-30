@@ -47,7 +47,7 @@ def residual(mesh, T, Twall, Q):
             dTyU = (T[ind(i,j+1)] - T[ind(i,j)])/dYU
             dTyD = (T[ind(i,j-1)] - T[ind(i,j)])/dYD
 
-            R[ind(i,j)] = 2.0*(dTxR - dTxL)/(dXR-dXL) + 2.0*(dTyU - dTyD)/(dYU-dYD) + Q
+            R[ind(i,j)] = 2.0*(dTxR - dTxL)/(dXR-dXL) + 2.0*(dTyU - dTyD)/(dYU-dYD) + Q[ind(i,j)]
 
     return R
 
@@ -135,14 +135,14 @@ def residual_d(mesh, T, Twall, Q, dT, dTwall, dQ):
             dTyD = (T[ind(i,j-1)] - T[ind(i,j)])/dYD
             dTyD_d = (dT[ind(i,j-1)] - dT[ind(i,j)])/dYD
 
-            dR[ind(i,j)] = 2.0*(dTxR_d - dTxL_d)/(dXR-dXL) + 2.0*(dTyU_d - dTyD_d)/(dYU-dYD) + dQ
+            dR[ind(i,j)] = 2.0*(dTxR_d - dTxL_d)/(dXR-dXL) + 2.0*(dTyU_d - dTyD_d)/(dYU-dYD) + dQ[ind(i,j)]
             
     return dR
 
 def residual_b(mesh, T, Twall, Q, dR):
     dT = np.zeros(mesh.size())
     dTwall = np.zeros(1);
-    dQ = np.zeros(1);
+    dQ = np.zeros(mesh.size());
     
     Nx, Ny = mesh.dimension()
 
@@ -207,7 +207,7 @@ def residual_b(mesh, T, Twall, Q, dR):
             dT[ind(i,j-1)] += dTyD_b/dYD
             dT[ind(i,j)]   += -dTyD_b/dYD
 
-            dQ[0] += dR[ind(i,j)]
+            dQ[ind(i,j)] += dR[ind(i,j)]
             
     return dT, dTwall, dQ
     
@@ -225,12 +225,12 @@ if __name__ == "__main__":
     
     T = np.ones(mesh.size())*350
     Twall = np.ones(1)*300.0
-    Q = np.ones(1)*1000.0
+    Q = np.ones(mesh.size())*1000.0
 
     dRin = np.random.rand(mesh.size())
     dTin = np.random.rand(mesh.size())
     dTwall = np.random.rand(1)
-    dQ = np.random.rand(1)
+    dQ = np.random.rand(mesh.size())
 
     eps = 1e-2
     
