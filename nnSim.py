@@ -1,3 +1,5 @@
+import nlopt
+
 from matplotlib import pyplot
 from matplotlib import cm
 
@@ -37,11 +39,10 @@ class Net(nn.Module):
 class ResidualLoss(Grad.Function):
     
     @staticmethod
-    def forward(ctx, T, mesh, Tw, Q, Tobs):
+    def forward(ctx, T, mesh, Tw, Q):
         ctx.save_for_backward(T,Q)
         ctx.mesh = mesh
         ctx.Tw = Tw
-        ctx.Tobs = Tobs
 
         sum = torch.tensor(0.0, requires_grad=True)
         
@@ -52,11 +53,6 @@ class ResidualLoss(Grad.Function):
         sum = torch.tensor(0.0, requires_grad=True)       
         for i in range(mesh.size()):
             sum += R[i]*R[i]
-
-        Nx, Ny = mesh.dimension()
-        i = 5
-        for j in range(Ny):
-            sum += torch.dot((T[mesh.ind(i,j)] - Tobs[j]),(T[mesh.ind(i,j)] - Tobs[j]))
             
         return sum 
 
@@ -67,7 +63,6 @@ class ResidualLoss(Grad.Function):
         mesh = ctx.mesh
         Tw = ctx.Tw
         R = ctx.R
-        Tobs = ctx.Tobs
         
         grad_T = None
 
@@ -77,11 +72,6 @@ class ResidualLoss(Grad.Function):
             dR[i] = 2.0*R[i]*grad_output      
 
         dT,dTw,dQ = residual_b(mesh,T,Tw,Q,dR)
-
-        Nx, Ny = mesh.dimension()
-        i = 5
-        for j in range(Ny):
-            dT[mesh.ind(i,j)] += 2.0*(T[mesh.ind(i,j)] - Tobs[j])
             
         grad_T = torch.tensor(dT.reshape((mesh.size(),1)))
         grad_Q = torch.tensor(dQ.reshape((mesh.size(),1)))
@@ -110,46 +100,81 @@ for k in range(mesh.size()):
     Xin[l] = entry
     l = l + 1
             
-#print(Xin)
-
 Tinitial = torch.ones(mesh.size(),1)*300
 
-Tobs = torch.tensor([300.,         522.53657591, 698.79994668, 797.78856659, 827.03832688,
-                     827.03832688, 797.78856659, 698.79994668, 522.53657591, 300.        ])
-
-i = 5
-Tinitial[mesh.ind(i,0):mesh.ind(i+1,0)]= Tobs.reshape(10,1)
-
-print(Tinitial)
-
 Qinitial = torch.ones(mesh.size(),1)*10000
+
+for i in range(Nx):
+    for j in range(Ny):
+        r = math.sqrt(math.pow(X[mesh.ind(i,j)]-Lx/2,2) + math.pow(Y[mesh.ind(i,j)]-Ly/2,2))
+        Qinitial[mesh.ind(i,j)] = 10000*math.sin(2*3.14159*r)
+
+
 
 optimizer = optim.LBFGS(net.parameters())
 criterion = nn.MSELoss()
 
+
+Xobs = [[ 0.5555555555555556 ,  0.0 ],
+        [ 0.5555555555555556 ,  0.1111111111111111 ],
+        [ 0.5555555555555556 ,  0.2222222222222222 ],
+        [ 0.5555555555555556 ,  0.3333333333333333 ],
+        [ 0.5555555555555556 ,  0.4444444444444444 ],
+        [ 0.5555555555555556 ,  0.5555555555555556 ],
+        [ 0.5555555555555556 ,  0.6666666666666666 ],
+        [ 0.5555555555555556 ,  0.7777777777777778 ],
+        [ 0.5555555555555556 ,  0.8888888888888888 ],
+        [ 0.5555555555555556 ,  1.0 ]]
+
+Tobs= [299.99999999997146 ,
+       522.5365759112073 ,
+       698.7999466754953 ,
+       797.788566591018 ,
+       827.0383268786188 ,
+       827.0383268786195 ,
+       797.7885665910198 ,
+       698.7999466754993 ,
+       522.5365759112182 ,
+       300.0000000000094 ]
+
+Nobs = len(Tobs);
+
+Xobs = torch.tensor(Xobs)
+Tobs = torch.tensor(Tobs)
+Tobs = Tobs.reshape(Nobs, 1)
+
+print(Xobs)
+print(Xin.shape)
+print(Xobs.shape)
+print(Tobs.shape)
+
+
 # Train Network to reproduce initial condition
-for i in range(100):
+for i in range(1):
     def closure():
-        optimizer.zero_grad()
-        output = net(Xin)
-        T = torch.narrow(output,1,0,1)
-        Q = torch.narrow(output,1,1,1)
-        loss = criterion(T,Tinitial)
-        loss += criterion(Q,Qinitial)
-        print(loss)
-        loss.backward()
-        return loss
+         optimizer.zero_grad()
+         output = net(Xin)
+         T = torch.narrow(output,1,0,1)
+         Q = torch.narrow(output,1,1,1)
+         loss = criterion(T,Tinitial)
+         loss += criterion(Q,Qinitial)
+         print(loss)
+         loss.backward()
+         return loss
     optimizer.step(closure)  
 
 # Traing to minimize residual
 optimizer2 = optim.LBFGS(net.parameters())
-for i in range(500):
+for i in range(100):
     def closure():
         optimizer2.zero_grad()
         output = net(Xin)
         T = torch.narrow(output,1,0,1)
         Q = torch.narrow(output,1,1,1)
-        loss = ResidualLoss.apply(T, mesh, Tw, Q, Tobs)
+        loss = ResidualLoss.apply(T, mesh, Tw, Q)
+        output2 = net(Xobs)
+        T = torch.narrow(output2,1,0,1)
+        loss += criterion(T, Tobs)        
         print(loss)
         loss.backward()
         return loss
