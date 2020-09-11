@@ -19,11 +19,11 @@ class Net(nn.Module):
 
     def __init__(self):
         super(Net, self).__init__()
-        self.fc1 = nn.Linear(2,1000) 
-        self.fc2 = nn.Linear(1000,1)
+        self.fc1 = nn.Linear(2,100) 
+        self.fc2 = nn.Linear(100,1)
 
     def forward(self, x):
-        x = F.tanh(self.fc1(x))
+        x = F.relu(self.fc1(x))
         x = self.fc2(x)
         return x
 
@@ -95,18 +95,26 @@ optimizer = optim.LBFGS(net.parameters())
 Qi = torch.ones(mesh.size())*10000
 
 for i in range(20):
-     def closure():
-         optimizer.zero_grad()
-         output = net(Xin)
-         loss = criterion(output,Qi)
-         print(loss)
-         loss.backward()
-         return loss
-     optimizer.step(closure)  
+    exitFlag = False
+    def closure():
+        optimizer.zero_grad()
+        output = net(Xin)
+        loss = criterion(output,Qi)
+        print(loss)
+
+        if (loss < 1e-2):
+            exitFlag = True
+        
+        loss.backward()
+        return loss
+    
+    if (not exitFlag):
+        optimizer.step(closure)  
 
 optimizer2 = optim.LBFGS(net.parameters())
      
 for l in range(100):
+    exitFlag = False
     def closure():
         optimizer2.zero_grad()
         Q = net(Xin)
@@ -121,6 +129,10 @@ for l in range(100):
         Tsim = Tdata2.reshape(Nobs, 1)
 
         loss = criterion(Tsim,Tobs)
+
+        if (loss < 10):
+            exitFlag = True
+        
         loss.backward()
         dT = Tdata2.grad.detach().numpy()
         dLdT = np.zeros(mesh.size())
@@ -130,12 +142,13 @@ for l in range(100):
         dTwall, dQ = adjointSolve(mesh, T, Tw, Q, dLdT)
 
         Q.backward(torch.tensor(dQ).reshape(Q.shape))
-d
+
         print(loss)
         
         return loss
-        
-    optimizer2.step(closure)
+
+    if (not exitFlag):
+        optimizer2.step(closure)
 
 T = T.reshape(Nx,Ny)
 
