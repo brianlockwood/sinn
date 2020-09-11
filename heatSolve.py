@@ -18,7 +18,7 @@ def primalSolve(mesh, T, Twall, Q, tol=1e-10, maxiter = 100):
         error = np.dot(R,R)
         error = math.sqrt(error/(1.0*mesh.size()))
         
-        print(error)
+#        print(error)
         
         if (error < tol):
             break
@@ -66,49 +66,56 @@ if __name__ == "__main__":
     Twall = 300.0
     #Q = np.ones(mesh.size())*1000.0
     
-    Q = np.ones(mesh.size())*10000.0
-                
-    primalSolve(mesh, T, Twall, Q)
+    Q = np.zeros(mesh.size())
 
-    sum = 0.0
-    for i in range(mesh.size()):
-        sum += T[i]
-
-    Tavg = sum/(1.0*mesh.size())
-
-    print("L1=", Tavg)
-    
-    dLdT = np.ones(mesh.size())/(1.0*mesh.size()) 
-
-    dTwall, dQ = adjointSolve(mesh, T, Twall, Q, dLdT)
-
-    sum = 0.0
-    for i in range(mesh.size()):
-        sum += dQ[i]
-
-    print("dLdQ = ", sum)
-    
-
-    Q = np.ones(mesh.size())*11000.0
+    for i in range(Nx):
+        for j in range(Ny):
+            r = math.sqrt(math.pow(X[mesh.ind(i,j)]-0.5,2) + math.pow(Y[mesh.ind(i,j)]-0.5,2))
+            if (r < 0.25):
+                Q[mesh.ind(i,j)] = 10000.0
     
     primalSolve(mesh, T, Twall, Q)
 
-    sum = 0.0
-    for i in range(mesh.size()):
-        sum += T[i]
+    # sum = 0.0
+    # for i in range(mesh.size()):
+    #     sum += T[i]
 
-    Tavg2 = sum/(1.0*mesh.size())
+    # Tavg = sum/(1.0*mesh.size())
 
-    print("L2=",Tavg2)
+    # print("L1=", Tavg)
     
-    print("FD = ", (Tavg2-Tavg)/(11000.0-10000.0))
+    # dLdT = np.ones(mesh.size())/(1.0*mesh.size()) 
+
+    # dTwall, dQ = adjointSolve(mesh, T, Twall, Q, dLdT)
+
+    # sum = 0.0
+    # for i in range(mesh.size()):
+    #     sum += dQ[i]
+
+    # print("dLdQ = ", sum)
+    
+
+    # Q = np.ones(mesh.size())*11000.0
+    
+    # primalSolve(mesh, T, Twall, Q)
+
+    # sum = 0.0
+    # for i in range(mesh.size()):
+    #     sum += T[i]
+
+    # Tavg2 = sum/(1.0*mesh.size())
+
+    # print("L2=",Tavg2)
+    
+    # print("FD = ", (Tavg2-Tavg)/(11000.0-10000.0))
     
     # i = 5
     # for j in range(Ny):
     #     print("[", X[mesh.ind(i,j)], ", ",  Y[mesh.ind(i,j)], "],")
 
-    # for j in range(Ny):
-    #     print(T[mesh.ind(i,j)], ",")
+    i = 5
+    for j in range(Ny):
+        print(T[mesh.ind(i,j)], ",")
 
     # X = X.reshape((Nx,Ny))
     # Y = Y.reshape((Nx,Ny))
@@ -117,6 +124,6 @@ if __name__ == "__main__":
 
     # print(Q)
 
-    pyplot.contourf(X.reshape((Nx,Ny)),Y.reshape((Nx,Ny)),dQ.reshape((Nx,Ny)))
+    pyplot.contourf(X.reshape((Nx,Ny)),Y.reshape((Nx,Ny)),Q.reshape((Nx,Ny)))
     pyplot.show()
     
